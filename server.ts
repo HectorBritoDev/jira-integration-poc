@@ -1,9 +1,10 @@
 import { serve } from "bun";
+import { MainResponse } from ".";
 
 const server = serve({
-  port: 3000,
+  port: 1234,
   routes: {
-    "/": new Response("Welcome to bun")
+    "/": MainResponse()
   }
 })
 
