@@ -1,6 +1,9 @@
 const AUTHORIZE_URL = "https://auth.atlassian.com/authorize";
 const AUDIENCE = "api.atlassian.com";
-export const CLIENT_ID = "lOm6hMSxPyEoXyjWZqPtT1ov7wkdp03J";
+export const CLIENT_ID = process.env.ATLASSIAN_CLIENT_ID;
+if (!CLIENT_ID) {
+  throw new Error("Set ATLASSIAN_CLIENT_ID in .env");
+}
 export const REDIRECT_URI = "http://localhost:1234/oauth/callback";
 export const STATE = "12345";
 const SCOPES = [

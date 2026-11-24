@@ -5,7 +5,7 @@ import { SYSTEM_PROMPT } from "./src/prompts"
 import { jiraTools } from "./src/tools/jira"
 
 // Add jiraTools to use the SDK
-const tools = [...(await loadMcpTools())]
+const tools = [...jiraTools, ...(await loadMcpTools())]
 
 await startChat({
   model,
