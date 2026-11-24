@@ -6,8 +6,7 @@ A terminal chat agent that answers questions about a Jira project and can create
 
 - [Bun](https://bun.sh)
 - An Atlassian Cloud site with a Jira project
-- API token authentication turned on for the Atlassian MCP server. An organization admin does this in Atlassian Administration, under **Connectors > Atlassian MCP server > Authentication**.
-- An Atlassian API token created with scopes (see [Atlassian API token](#atlassian-api-token))
+- An OAuth 2.0 (3LO) app on [developer.atlassian.com](https://developer.atlassian.com/console/myapps/) with the Jira scopes listed in `redirect.ts` and the callback URL `http://localhost:1234/oauth/callback`
 - An OpenAI-compatible chat endpoint with a model that supports tool calling
 
 ## Setup
@@ -17,19 +16,17 @@ bun install
 cp .env.example .env   # then replace the dummy values
 ```
 
-## Atlassian API token
+## Atlassian access token
 
-The app connects to `https://mcp.atlassian.com/v2/mcp` and sends `Authorization: Basic base64(email:token)`.
+Both the MCP client and jira.js send `Authorization: Bearer <ATLASSIAN_ACCESS_TOKEN>`. Get the token with the OAuth flow:
 
-The MCP server only accepts an API token created with scopes. A classic token (one without scopes) still connects and lists the tools, but every tool call fails with:
-
-```
-Unable to resolve user scopes from the user-context token ... The session token is missing the scope claim required to authorize this operation.
+```sh
+bun server.ts
 ```
 
-Create the token from this link, which preselects the MCP app and all scopes, then put it in `ATLASSIAN_API_TOKEN`:
+Open the URL it prints, approve access, and the callback writes the token to `ATLASSIAN_ACCESS_TOKEN` in `.env`. Then stop the server.
 
-<https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&expiryDays=max&appId=mcp-v2&selectedScopes=all>
+The token expires after about an hour, and the flow doesn't ask for a refresh token (no `offline_access` scope), so run it again when the token expires.
 
 ## Environment variables
 
@@ -37,8 +34,9 @@ Bun loads `.env` automatically. The app stops at startup with `Set <NAME> in .en
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `ATLASSIAN_EMAIL` | Yes | Email of the Atlassian account the agent acts as |
-| `ATLASSIAN_API_TOKEN` | Yes | API token with scopes for that account (see [Atlassian API token](#atlassian-api-token)) |
+| `ATLASSIAN_CLIENT_ID` | Yes | Client ID of the OAuth 2.0 app, used by `server.ts` |
+| `ATLASSIAN_CLIENT_SECRET` | Yes | Secret of the OAuth 2.0 app, used by `server.ts` |
+| `ATLASSIAN_ACCESS_TOKEN` | Yes | OAuth 2.0 access token. `server.ts` writes it (see [Atlassian access token](#atlassian-access-token)) |
 | `ATLASSIAN_SITE` | Yes | Site hostname, e.g. `your-site.atlassian.net`. The model passes it as the `cloudId` argument of the Atlassian tools. |
 | `JIRA_PROJECT_KEY` | Yes | Key of the Jira project the agent works in, e.g. `ABC` |
 | `LITELLM_BASE_URL` | Yes | Base URL of the OpenAI-compatible endpoint |
@@ -60,12 +58,10 @@ The chat sends a first question on its own, then reads your replies from the ter
 - `atlassian_search` is Rovo search, and each call can spend up to 10 Rovo credits. It fails if the organization has no credits left.
 - All Atlassian MCP tools are loaded, including the ones that change data, such as `atlassian_createJiraIssue`, `atlassian_editJiraIssue`, `atlassian_executeWrite` and `atlassian_executeDestructive`. To keep the agent read-only, filter the list in `loadMcpTools()` in `src/mcp.ts`.
 
-## jira.js tools (not loaded)
+## jira.js tools
 
-`src/tools/jira` has jira.js versions of the issue tools: `jira_get_issues`, `jira_create_issue` and `jira_edit_issue`. They aren't loaded. To use them:
+`src/tools/jira` has jira.js versions of the issue tools: `jira_get_issues`, `jira_create_issue` and `jira_edit_issue`. `index.ts` loads them next to the MCP tools, but the system prompt in `src/prompts.ts` doesn't mention them yet.
 
-1. Add `...jiraTools` to the tool list in `index.ts`.
-2. Mention them in the system prompt in `src/prompts.ts`.
-3. Give them a classic API token. They call the Jira REST API at `https://<ATLASSIAN_SITE>`, which rejects the scoped MCP token with 401. Both currently read `ATLASSIAN_API_TOKEN`, so running them alongside the MCP tools needs a second variable.
+They use the same access token as the MCP client. With an OAuth token, jira.js looks up the site's cloud ID from `https://api.atlassian.com/oauth/token/accessible-resources` (matching `ATLASSIAN_SITE`) and calls the Jira REST API at `https://api.atlassian.com/ex/jira/<cloudId>`, not at `https://<ATLASSIAN_SITE>`.
 
 The issue types `jira_create_issue` can create are set in `JIRA_ISSUE_TYPES` in `src/config.ts`. Jira localizes these names, so change them to match the names on your site.

@@ -7,8 +7,8 @@ function requireEnv(name: string): string {
   return value
 }
 
-export const ATLASSIAN_EMAIL = requireEnv("ATLASSIAN_EMAIL")
-export const ATLASSIAN_API_TOKEN = requireEnv("ATLASSIAN_API_TOKEN")
+// OAuth 2.0 (3LO) access token, written to .env by server.ts. It expires after about an hour.
+export const ATLASSIAN_ACCESS_TOKEN = requireEnv("ATLASSIAN_ACCESS_TOKEN")
 export const LITELLM_API_KEY = process.env.LITELLM_API_KEY
 export const LITELLM_BASE_URL = requireEnv("LITELLM_BASE_URL")
 export const LITELLM_MODEL = requireEnv("LITELLM_MODEL")

@@ -1,8 +1,5 @@
 import { MCPAdapter } from "@langchain/mcp-adapters"
-import { ATLASSIAN_API_TOKEN, ATLASSIAN_EMAIL } from "./config"
-
-// Basic Auth = "Basic " + base64("email:api_token")
-const atlassianAuth = Buffer.from(`${ATLASSIAN_EMAIL}:${ATLASSIAN_API_TOKEN}`).toString("base64")
+import { ATLASSIAN_ACCESS_TOKEN } from "./config"
 
 const adapter = new MCPAdapter({
   servers: {
@@ -12,7 +9,7 @@ const adapter = new MCPAdapter({
     atlassian: {
       url: "https://mcp.atlassian.com/v2/mcp",
       headers: {
-        Authorization: `Basic ${atlassianAuth}`
+        Authorization: `Bearer ${ATLASSIAN_ACCESS_TOKEN}`
       }
     }
   }
