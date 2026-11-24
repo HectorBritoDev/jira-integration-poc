@@ -13,7 +13,7 @@ export const LITELLM_API_KEY = process.env.LITELLM_API_KEY
 export const LITELLM_BASE_URL = requireEnv("LITELLM_BASE_URL")
 export const LITELLM_MODEL = requireEnv("LITELLM_MODEL")
 
-// The Atlassian tools require a cloudId (site UUID, hostname or URL), and no loaded tool can look it up.
+// jira.js uses the site to pick the cloud ID the token can reach, and to build issue links.
 export const ATLASSIAN_SITE = requireEnv("ATLASSIAN_SITE")
 export const JIRA_PROJECT_KEY = requireEnv("JIRA_PROJECT_KEY")
 // Issue type names are localized on this site. "Subtask" is left out because it needs a parent issue.

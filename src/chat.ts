@@ -1,6 +1,6 @@
 import type { ChatOpenAI } from "@langchain/openai"
 import type { StructuredToolInterface } from "@langchain/core/tools"
-import { HumanMessage, SystemMessage, type BaseMessage } from "@langchain/core/messages"
+import { HumanMessage, type BaseMessage } from "@langchain/core/messages"
 import { runAgent } from "./agent"
 
 const EXIT_COMMANDS = new Set(["exit", "quit"])
@@ -8,7 +8,6 @@ const EXIT_COMMANDS = new Set(["exit", "quit"])
 type ChatOptions = {
   model: ChatOpenAI
   tools: StructuredToolInterface[]
-  systemPrompt: string
   /** Sent automatically before the user types anything, so there's something to look at right away. */
   firstMessage: string
 }
@@ -17,8 +16,8 @@ type ChatOptions = {
  * Terminal chat: sends `firstMessage`, prints the answer, then reads the user's replies from stdin
  * until they type "exit"/"quit" or press Ctrl+D. The whole history is kept, so the model remembers earlier turns.
  */
-export async function startChat({ model, tools, systemPrompt, firstMessage }: ChatOptions) {
-  const history: BaseMessage[] = [new SystemMessage(systemPrompt)]
+export async function startChat({ model, tools, firstMessage }: ChatOptions) {
+  const history: BaseMessage[] = []
 
   const reply = async (text: string) => {
     history.push(new HumanMessage(text))
