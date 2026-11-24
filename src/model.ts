@@ -1,8 +1,8 @@
 import { ChatOpenAI } from "@langchain/openai"
-import { LITELLM_API_KEY } from "./config"
+import { LITELLM_API_KEY, LITELLM_BASE_URL, LITELLM_MODEL } from "./config"
 
 export const model = new ChatOpenAI({
-  model: "qwen-3.8-27b",
+  model: LITELLM_MODEL,
   apiKey: LITELLM_API_KEY,
-  configuration: { baseURL: "http://dev.litellm.localhost:8080/" },
+  configuration: { baseURL: LITELLM_BASE_URL },
 })
