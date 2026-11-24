@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "@langchain/mcp-adapters": "^2.0.3"
+    "@langchain/mcp-adapters": "^2.0.3",
+    "jira.js": "^6.4.0"
   },
   "devDependencies": {
     "@langchain/community": "^1.1.29",
