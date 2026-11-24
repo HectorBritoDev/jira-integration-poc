@@ -9,10 +9,11 @@ const MAX_TOOL_ROUNDS = 5
 /**
  * Calls the model, runs every tool it asks for, and repeats until it answers
  * without tool calls (or MAX_TOOL_ROUNDS is reached). Returns the last model message.
+ *
+ * Every model reply and tool result is appended to `history`, so the caller can keep the conversation going.
  */
-export async function runAgent(model: ChatOpenAI, tools: StructuredToolInterface[], messages: BaseMessage[]) {
+export async function runAgent(model: ChatOpenAI, tools: StructuredToolInterface[], history: BaseMessage[]) {
   const modelWithTools = model.bindTools(tools)
-  const history = [...messages]
 
   let aiMessage = await modelWithTools.invoke(history)
   history.push(aiMessage)
@@ -29,6 +30,13 @@ export async function runAgent(model: ChatOpenAI, tools: StructuredToolInterface
 
   if (aiMessage.tool_calls?.length) {
     console.warn(`[warn] Stopped after ${MAX_TOOL_ROUNDS} tool rounds; the model still wanted more tools.`)
+    // The API rejects a history with unanswered tool calls, which would break the next turn of the chat.
+    for (const toolCall of aiMessage.tool_calls) {
+      history.push(new ToolMessage({
+        tool_call_id: toolCall.id ?? "",
+        content: `Error: not run, the limit of ${MAX_TOOL_ROUNDS} tool rounds per reply was reached`,
+      }))
+    }
   }
 
   return aiMessage
