@@ -10,7 +10,7 @@ const adapter = new MCPAdapter({
       url: "https://docs.langchain.com/mcp"
     },
     atlassian: {
-      url: "https://mcp.atlassian.com/v2/mcp?tools=all",
+      url: "https://mcp.atlassian.com/v2/mcp",
       headers: {
         Authorization: `Basic ${atlassianAuth}`
       }
