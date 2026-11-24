@@ -1,67 +1,68 @@
 # jira-integration-poc
 
-A terminal chat agent that answers questions about a Jira project and can create and edit its issues. It's built with LangChain and talks to any OpenAI-compatible model endpoint (for example a LiteLLM proxy). Its Jira tools come from the Atlassian Rovo MCP server (v2), and it also loads tools from the LangChain docs MCP server.
+A terminal chat agent that reads, creates and edits issues in a Jira project. It uses LangChain with an OpenAI-compatible model endpoint (for example a LiteLLM proxy), and signs in to Atlassian with an OAuth 2.0 access token.
 
-## Requirements
+## Before you start
+
+You need:
 
 - [Bun](https://bun.sh)
-- An Atlassian Cloud site with a Jira project
-- An OAuth 2.0 (3LO) app on [developer.atlassian.com](https://developer.atlassian.com/console/myapps/) with the Jira scopes listed in `redirect.ts` and the callback URL `http://localhost:1234/oauth/callback`
+- An OAuth 2.0 (3LO) app in the [Atlassian developer console](https://developer.atlassian.com/console/myapps/) with:
+  - the callback URL `http://localhost:1234/oauth/callback`
+  - the Jira API scopes `read:jira-work`, `read:jira-user`, `write:jira-work` and `manage:jira-project`
 - An OpenAI-compatible chat endpoint with a model that supports tool calling
 
-## Setup
+## Steps
+
+Run these in order, from the project folder.
+
+### 1. Install dependencies
 
 ```sh
 bun install
-cp .env.example .env   # then replace the dummy values
 ```
 
-## Atlassian access token
+### 2. Create `.env`
 
-Both the MCP client and jira.js send `Authorization: Bearer <ATLASSIAN_ACCESS_TOKEN>`. Get the token with the OAuth flow:
+```sh
+cp .env.example .env
+```
+
+Then fill in:
+
+| Variable | Value |
+| --- | --- |
+| `ATLASSIAN_CLIENT_ID` | Client ID of your OAuth app |
+| `ATLASSIAN_CLIENT_SECRET` | Secret of your OAuth app |
+| `ATLASSIAN_SITE` | Your site's hostname, e.g. `your-site.atlassian.net` |
+| `JIRA_PROJECT_KEY` | Key of the Jira project, e.g. `ABC` |
+| `LITELLM_BASE_URL` | Base URL of the model endpoint |
+| `LITELLM_MODEL` | Model name |
+| `LITELLM_API_KEY` | API key for the endpoint. Leave it empty if the endpoint doesn't need one. |
+
+Leave `ATLASSIAN_ACCESS_TOKEN` empty. Step 3 fills it in.
+
+### 3. Get an access token
 
 ```sh
 bun server.ts
 ```
 
-Open the URL it prints, approve access, and the callback writes the token to `ATLASSIAN_ACCESS_TOKEN` in `.env`. Then stop the server.
+Open the URL it prints and approve access. When the page says "Access token saved to .env", stop the server with Ctrl+C.
 
-The token expires after about an hour, and the flow doesn't ask for a refresh token (no `offline_access` scope), so run it again when the token expires.
-
-## Environment variables
-
-Bun loads `.env` automatically. The app stops at startup with `Set <NAME> in .env` if a required variable is missing.
-
-| Variable | Required | Description |
-| --- | --- | --- |
-| `ATLASSIAN_CLIENT_ID` | Yes | Client ID of the OAuth 2.0 app, used by `server.ts` |
-| `ATLASSIAN_CLIENT_SECRET` | Yes | Secret of the OAuth 2.0 app, used by `server.ts` |
-| `ATLASSIAN_ACCESS_TOKEN` | Yes | OAuth 2.0 access token. `server.ts` writes it (see [Atlassian access token](#atlassian-access-token)) |
-| `ATLASSIAN_SITE` | Yes | Site hostname, e.g. `your-site.atlassian.net`. jira.js uses it to pick the site's cloud ID and to build issue links. |
-| `JIRA_PROJECT_KEY` | Yes | Key of the Jira project the agent works in, e.g. `ABC` |
-| `LITELLM_BASE_URL` | Yes | Base URL of the OpenAI-compatible endpoint |
-| `LITELLM_MODEL` | Yes | Model name to request from that endpoint |
-| `LITELLM_API_KEY` | No | API key for the endpoint, if it needs one |
-
-## Run
+### 4. Start the chat
 
 ```sh
 bun index.ts
 ```
 
-The chat sends a first question on its own, then reads your replies from the terminal. Type `exit` or `quit`, or press Ctrl+D, to end it.
+The chat sends the question in `firstMessage` in `index.ts`, then reads your replies. Type `exit` or `quit`, or press Ctrl+D, to end it.
+
+## When the token expires
+
+The access token lasts about an hour, and there's no refresh token. When it expires, repeat step 3 and then step 4.
 
 ## Notes
 
-- Don't add a query string such as `?tools=all` to the MCP URL in `src/mcp.ts`. With it, the server lists only the Rovo `search` tool instead of the full Jira and Confluence tool set.
-- The model sees the Atlassian tools as `atlassian_<name>`, e.g. `atlassian_searchJiraIssuesUsingJql`.
-- `atlassian_search` is Rovo search, and each call can spend up to 10 Rovo credits. It fails if the organization has no credits left.
-- All Atlassian MCP tools are loaded, including the ones that change data, such as `atlassian_createJiraIssue`, `atlassian_editJiraIssue`, `atlassian_executeWrite` and `atlassian_executeDestructive`. To keep the agent read-only, filter the list in `loadMcpTools()` in `src/mcp.ts`.
-
-## jira.js tools
-
-`src/tools/jira` has jira.js versions of the issue tools: `jira_get_issues`, `jira_create_issue` and `jira_edit_issue`. `index.ts` loads them next to the MCP tools.
-
-They use the same access token as the MCP client. With an OAuth token, jira.js looks up the site's cloud ID from `https://api.atlassian.com/oauth/token/accessible-resources` (matching `ATLASSIAN_SITE`) and calls the Jira REST API at `https://api.atlassian.com/ex/jira/<cloudId>`, not at `https://<ATLASSIAN_SITE>`.
-
-The issue types `jira_create_issue` can create are set in `JIRA_ISSUE_TYPES` in `src/config.ts`. Jira localizes these names, so change them to match the names on your site.
+- The Atlassian MCP tools (`atlassian_*`) fail with `Insufficient scope: required "search:jira:agent-interface"` because the OAuth app doesn't request that scope. The jira.js tools (`jira_get_issues`, `jira_create_issue` and `jira_edit_issue`) work.
+- Jira translates issue type names into the site's language. Set the names `jira_create_issue` can use in `JIRA_ISSUE_TYPES` in `src/config.ts`.
