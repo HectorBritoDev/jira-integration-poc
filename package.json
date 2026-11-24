@@ -1,5 +1,7 @@
 {
-  "dependencies": {},
+  "dependencies": {
+    "@langchain/mcp-adapters": "^2.0.3"
+  },
   "devDependencies": {
     "@langchain/community": "^1.1.29",
     "@langchain/core": "^1.5.0",

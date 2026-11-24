@@ -1,12 +1,23 @@
 import { ChatOpenAI } from "@langchain/openai"
-import { tool } from "@langchain/core/tools"
-import { HumanMessage, type BaseMessage } from "@langchain/core/messages"
+import { MCPAdapter } from "@langchain/mcp-adapters"
+import { tool, type StructuredToolInterface } from "@langchain/core/tools"
+import { HumanMessage, ToolMessage, type BaseMessage } from "@langchain/core/messages"
 import z from "zod"
 
-// 1. Define the tool: a function + a name, description and input schema.
-//    The function receives the parsed input object (matching the schema).
+
+const adapter = new MCPAdapter({
+  servers: {
+    docs: {
+      url: "https://docs.langchain.com/mcp"
+    }
+  }
+})
+
+const mcpTooList = await adapter.listTools()
+// console.log("[debug] MCP tools loaded:", mcpTooList.map((t) => t.name))
+
 const sayHelloTo = tool(
-  ({ name }) => `Epale mi pana ${name}`,
+  ({ name }) => `Avlame ${name}, QLQ. Bienvenido`,
   {
     name: "say_hello", // letters, numbers, _ and - only (no spaces)
     description: "Says hello to a given user",
@@ -22,26 +33,41 @@ const model = new ChatOpenAI({
   configuration: { baseURL: "http://dev.litellm.localhost:8080/" },
 })
 
-// 2. bindTools returns a NEW model instance; it doesn't modify `model`.
-const modelWithTools = model.bindTools([sayHelloTo])
 
-// 3. Ask the model. If it decides to use the tool, it returns tool_calls
-//    instead of (or alongside) text content.
-const messages: BaseMessage[] = [new HumanMessage("my name is hector")]
+const toolList: StructuredToolInterface[] = [sayHelloTo, ...mcpTooList]
+
+const modelWithTools = model.bindTools(toolList)
+
+const messages: BaseMessage[] = [new HumanMessage("my name is hector, I want to know how many provider do langchain support?")]
 const aiMessage = await modelWithTools.invoke(messages)
 messages.push(aiMessage)
 
-// 4. Run each requested tool call. Invoking a tool with a ToolCall
-//    returns a ToolMessage that we send back to the model.
+// console.log("[debug] Tool calls requested by the model:", JSON.stringify(aiMessage.tool_calls, null, 2))
+
 for (const toolCall of aiMessage.tool_calls ?? []) {
-  const toolMessage = await sayHelloTo.invoke(toolCall)
-  messages.push(toolMessage)
+  // console.log(`[debug] Model asked for tool "${toolCall.name}" with args`, toolCall.args)
+  const toolToExecute = toolList.find(tool => toolCall.name === tool.name)
+  if (!toolToExecute) {
+    // Every tool call needs a reply, so tell the model the tool doesn't exist.
+    messages.push(new ToolMessage({
+      tool_call_id: toolCall.id ?? "",
+      content: `Error: tool "${toolCall.name}" does not exist`,
+    }))
+    continue
+  }
+  // console.log(`[debug] Code is invoking tool "${toolToExecute.name}"`)
+  const toolResponse = await toolToExecute.invoke(toolCall)
+  messages.push(toolResponse)
 }
 
-// 5. Let the model write its final answer using the tool results.
 const finalResponse = await modelWithTools.invoke(messages)
 
 console.log(finalResponse.content)
+
+
+
+
+
 
 export const MainResponse = () => {
   return new Response("OK")
