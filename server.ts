@@ -1,6 +1,9 @@
 import { serve } from "bun";
 import { handleRedirection } from "./src/oauth/callback";
 import { CLIENT_ID, REDIRECT_URI, STATE, urlToAuth } from "./redirect";
+import { setEnvVar } from "./src/env-file";
+
+const ENV_PATH = `${import.meta.dir}/.env`;
 
 const CLIENT_SECRET = process.env.ATLASSIAN_CLIENT_SECRET;
 if (!CLIENT_SECRET) {
@@ -37,7 +40,13 @@ const server = serve({
       }
 
       const tokenData = await tokenResponse.json();
-      return new Response(tokenData.access_token);
+      if (!tokenData.access_token) {
+        return new Response("Token response has no access_token", { status: 502 });
+      }
+
+      await setEnvVar(ENV_PATH, "ATLASSIAN_ACCESS_TOKEN", tokenData.access_token);
+      console.log(`Saved ATLASSIAN_ACCESS_TOKEN to ${ENV_PATH}`);
+      return new Response("Access token saved to .env. You can close this tab.");
     },
   }
 })
